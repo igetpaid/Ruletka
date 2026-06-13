@@ -312,6 +312,15 @@
     return segments.length - 1;
   }
 
+  function getSegmentByAngle(pointerScanAngle, segments, total) {
+    var accumulated = 0;
+    for (var i = 0; i < segments.length; i++) {
+      accumulated += (segments[i].weight || 1) / total * 360;
+      if (pointerScanAngle < accumulated) return i;
+    }
+    return segments.length - 1;
+  }
+
   function spinWheel() {
     if (isSpinning) return;
 
@@ -339,11 +348,11 @@
       angleBefore += (segments[i].weight || 1) / total * 360;
     }
     var sliceAngle = (segments[selectedIndex].weight || 1) / total * 360;
-    var segmentCenterDeg = angleBefore + sliceAngle / 2;
-    var targetAngle = 360 - segmentCenterDeg;
+    var randomOffset = Math.random() * sliceAngle;
+    var spinAngleDeg = angleBefore + randomOffset;
 
     var fullRotations = 5 + Math.floor(Math.random() * 4);
-    var totalSpin = fullRotations * 360 + targetAngle;
+    var totalSpin = fullRotations * 360 + spinAngleDeg;
 
     currentRotation += totalSpin;
     canvas.style.transform = 'rotate(' + currentRotation + 'deg)';
@@ -351,7 +360,12 @@
 
     setTimeout(function () {
       canvas.classList.remove('spinning');
-      showResult(segments[selectedIndex]);
+      var pointerScanAngle = ((currentRotation % 360) + 360) % 360;
+      var detectedIndex = getSegmentByAngle(pointerScanAngle, segments, total);
+      if (detectedIndex !== selectedIndex) {
+        console.error('SPIN MISMATCH: selected=' + selectedIndex + ' detected=' + detectedIndex + ' angle=' + pointerScanAngle);
+      }
+      showResult(segments[detectedIndex]);
       isSpinning = false;
       spinBtn.disabled = false;
       updateSpinButton();

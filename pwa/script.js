@@ -874,7 +874,7 @@
     if (!hash || hash.length < 2) return;
     var decoded = decodeConfig(hash);
     if (!decoded || !decoded.groups || decoded.groups.length === 0) {
-      history.replaceState(null, '', location.pathname + location.search);
+      safeReplaceState(location.pathname + location.search);
       return;
     }
     pendingShareConfig = decoded;
@@ -908,7 +908,7 @@
     updateSpinButton();
     drawWheel();
     pendingShareConfig = null;
-    history.replaceState(null, '', location.pathname + location.search);
+    safeReplaceState(location.pathname + location.search);
     document.getElementById('sharePreviewModal').classList.remove('active');
   }
 
@@ -933,6 +933,10 @@
   /* ============================================
      13. UTILITIES
      ============================================ */
+  function safeReplaceState(path) {
+    try { history.replaceState(null, '', path); } catch (e) {}
+  }
+
   function escapeAttr(str) {
     return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;')
       .replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -1038,12 +1042,12 @@
     document.getElementById('shareApplyBtn').addEventListener('click', applyShareConfig);
     document.getElementById('shareCancelBtn').addEventListener('click', function () {
       pendingShareConfig = null;
-      history.replaceState(null, '', location.pathname + location.search);
+      safeReplaceState(location.pathname + location.search);
       document.getElementById('sharePreviewModal').classList.remove('active');
     });
     document.getElementById('closeSharePreview').addEventListener('click', function () {
       pendingShareConfig = null;
-      history.replaceState(null, '', location.pathname + location.search);
+      safeReplaceState(location.pathname + location.search);
       document.getElementById('sharePreviewModal').classList.remove('active');
     });
 

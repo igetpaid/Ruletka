@@ -71,7 +71,7 @@
           <div class="theme-selector">
             <button class="theme-btn theme-light-btn active" data-theme="light">Светлая</button>
             <button class="theme-btn theme-dark-btn" data-theme="dark">Тёмная</button>
-            <button class="theme-btn theme-kawaii-btn" data-theme="kawaii">Романтическая</button>
+            <button class="theme-btn theme-contrast-btn" data-theme="contrast">Контрастная</button>
           </div>
         </div>
 
@@ -99,6 +99,13 @@
           <label for="spinCostInput">Стоимость вращения (очки)</label>
           <input type="number" id="spinCostInput" min="0" step="1" value="0" placeholder="0 = бесплатно">
           <div class="bg-hint">0 = бесплатное вращение. При нехватке очков вращение недоступно.</div>
+        </div>
+
+        <!-- Starting Points -->
+        <div class="setting-group">
+          <label for="startingPointsInput">Начальное количество очков</label>
+          <input type="number" id="startingPointsInput" min="0" step="1" value="0">
+          <div class="bg-hint">Очки при запуске и при новой сессии. Должно быть ≥ стоимости вращения.</div>
         </div>
 
         <!-- Groups -->

@@ -23,6 +23,7 @@
     backgroundImage: '',
     showScore: true,
     spinCost: 0,
+    startingPoints: 0,
     groups: [
       {
         name: '\u041E\u0441\u043D\u043E\u0432\u043D\u0430\u044F',
@@ -54,6 +55,7 @@
   var currentRotation = 0;
   var isSpinning = false;
   var dragState = null;
+  var expandedGroups = new Set();
 
   function migrateConfig(parsed) {
     if (parsed.segments && Array.isArray(parsed.segments) && !parsed.groups) {
@@ -73,6 +75,7 @@
     }
     if (!parsed.groups) parsed.groups = defaultConfig.groups;
     if (parsed.spinCost === undefined) parsed.spinCost = 0;
+    if (parsed.startingPoints === undefined) parsed.startingPoints = 0;
     if (parsed.backgroundImage === undefined) parsed.backgroundImage = '';
     if (parsed.showScore === undefined) parsed.showScore = true;
     parsed.groups.forEach(function (g) {
@@ -433,7 +436,7 @@
   }
 
   function newSession() {
-    score = 0;
+    score = config.startingPoints || 0;
     history = [];
     saveScore();
     saveHistory();
@@ -479,6 +482,7 @@
     document.getElementById('bgUrlInput').value = config.backgroundImage || '';
     document.getElementById('showScoreCheckbox').checked = config.showScore;
     document.getElementById('spinCostInput').value = config.spinCost || 0;
+    document.getElementById('startingPointsInput').value = config.startingPoints || 0;
 
     document.querySelectorAll('.theme-btn').forEach(function (btn) {
       btn.classList.toggle('active', btn.dataset.theme === config.theme);
@@ -495,6 +499,12 @@
   /* ---------- GROUPS ---------- */
   function renderGroupsList() {
     var container = document.getElementById('groupsContainer');
+    var prevBodies = container.querySelectorAll('.group-body');
+    expandedGroups.clear();
+    prevBodies.forEach(function (b, i) {
+      if (b.style.display !== 'none') expandedGroups.add(i);
+    });
+
     container.innerHTML = '';
 
     config.groups.forEach(function (group, gi) {
@@ -512,7 +522,8 @@
 
       var body = document.createElement('div');
       body.className = 'group-body';
-      body.style.display = 'none';
+      var isExpanded = expandedGroups.has(gi);
+      body.style.display = isExpanded ? 'block' : 'none';
 
       group.segments.forEach(function (seg, si) {
         body.appendChild(createSegmentItem(gi, si, seg));
@@ -690,6 +701,12 @@
     config.backgroundImage = document.getElementById('bgUrlInput').value.trim();
     config.showScore = document.getElementById('showScoreCheckbox').checked;
     config.spinCost = parseInt(document.getElementById('spinCostInput').value, 10) || 0;
+    config.startingPoints = parseInt(document.getElementById('startingPointsInput').value, 10) || 0;
+
+    if (config.spinCost > 0 && config.startingPoints < config.spinCost) {
+      alert('\u0412\u043D\u0438\u043C\u0430\u043D\u0438\u0435! \u0421\u0442\u043E\u0438\u043C\u043E\u0441\u0442\u044C \u0432\u0440\u0430\u0449\u0435\u043D\u0438\u044F (' + config.spinCost + ') \u0432\u044B\u0448\u0435, \u0447\u0435\u043C \u043D\u0430\u0447\u0430\u043B\u044C\u043D\u043E\u0435 \u043A\u043E\u043B\u0438\u0447\u0435\u0441\u0442\u0432\u043E \u043E\u0447\u043A\u043E\u0432 (' + config.startingPoints + '). \u0418\u0441\u043F\u0440\u0430\u0432\u044C\u0442\u0435 \u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0435.');
+      return;
+    }
 
     saveConfig();
     applyTheme(config.theme);
@@ -719,7 +736,7 @@
     document.body.className = 'theme-' + theme;
     var meta = document.querySelector('meta[name="theme-color"]');
     if (meta) {
-      var colors = { light: '#f5f5f5', dark: '#1a1a2e', kawaii: '#1a0a1a' };
+      var colors = { light: '#f5f5f5', dark: '#1a1a2e', contrast: '#0a0a0a' };
       meta.setAttribute('content', colors[theme] || colors.light);
     }
     applyBackgroundImage();

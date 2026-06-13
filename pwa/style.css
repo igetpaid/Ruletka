@@ -50,24 +50,24 @@ body {
   --pointer-color: #cf6679;
 }
 
-/* ===== Theme: Romantic ===== */
-.theme-kawaii {
-  --bg: #1a0a1a;
-  --surface: rgba(30, 12, 30, 0.92);
-  --text: #e8d5c4;
-  --text-secondary: #b89a8a;
-  --primary: #d4a574;
-  --primary-hover: #c08050;
-  --danger: #a05050;
-  --border: rgba(212, 165, 116, 0.25);
-  --modal-bg: rgba(10, 4, 10, 0.7);
-  --input-bg: rgba(40, 20, 40, 0.6);
-  --shadow: 0 4px 30px rgba(139, 58, 98, 0.3);
-  --pointer-color: #d4a574;
+/* ===== Theme: Contrast ===== */
+.theme-contrast {
+  --bg: #0a0a0a;
+  --surface: #1a1a1a;
+  --text: #f0e0e0;
+  --text-secondary: #b0a0a0;
+  --primary: #e84393;
+  --primary-hover: #d63031;
+  --danger: #d63031;
+  --border: rgba(232, 67, 147, 0.2);
+  --modal-bg: rgba(0, 0, 0, 0.7);
+  --input-bg: #151515;
+  --shadow: 0 4px 30px rgba(232, 67, 147, 0.15);
+  --pointer-color: #e84393;
 }
 
-body.theme-kawaii {
-  background-color: #1a0a1a;
+body.theme-contrast {
+  background-color: #0a0a0a;
 }
 
 body.theme-light {
@@ -452,7 +452,7 @@ body.theme-dark {
 
 .theme-light-btn.active { background: #4CAF50; border-color: #4CAF50; }
 .theme-dark-btn.active { background: #bb86fc; border-color: #bb86fc; color: #1a1a2e; }
-.theme-kawaii-btn.active { background: #d4a574; border-color: #d4a574; color: #1a0a1a; }
+.theme-contrast-btn.active { background: #e84393; border-color: #e84393; color: #0a0a0a; }
 
 /* ===== Groups ===== */
 #groupsContainer {
@@ -544,6 +544,21 @@ body.theme-dark {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+
+.group-body::-webkit-scrollbar {
+  width: 5px;
+}
+.group-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+.group-body::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
 }
 
 /* ===== Segment Items (new layout) ===== */

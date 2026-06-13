@@ -803,6 +803,134 @@
   }
 
   /* ============================================
+     12.5. SHARE VIA URL HASH
+     ============================================ */
+  var KEY_MAP = { name: 'n', theme: 't', backgroundImage: 'bg', showScore: 'sc', spinCost: 'sp', startingPoints: 'st', groups: 'g', enabled: 'e', segments: 's', weight: 'w', points: 'p' };
+  var KEY_MAP_REV = {}; (function () { for (var k in KEY_MAP) KEY_MAP_REV[KEY_MAP[k]] = k; })();
+
+  function encodeConfig(cfg) {
+    var o = {};
+    if (cfg.name) o.n = cfg.name;
+    if (cfg.theme && cfg.theme !== 'light') o.t = cfg.theme;
+    if (cfg.backgroundImage) o.bg = cfg.backgroundImage;
+    if (cfg.showScore === false) o.sc = false;
+    if (cfg.spinCost) o.sp = cfg.spinCost;
+    if (cfg.startingPoints) o.st = cfg.startingPoints;
+    if (cfg.groups) {
+      o.g = cfg.groups.map(function (gr) {
+        var go = {};
+        if (gr.name) go.n = gr.name;
+        if (gr.enabled === false) go.e = false;
+        if (gr.segments) {
+          go.s = gr.segments.map(function (sg) {
+            var so = {};
+            if (sg.name) so.n = sg.name;
+            if (sg.weight && sg.weight !== 1) so.w = sg.weight;
+            if (sg.points) so.p = sg.points;
+            return so;
+          });
+        }
+        return go;
+      });
+    }
+    var json = JSON.stringify(o);
+    var b64 = btoa(unescape(encodeURIComponent(json)));
+    return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  function decodeConfig(hash) {
+    try {
+      var b64 = hash.replace(/-/g, '+').replace(/_/g, '/');
+      while (b64.length % 4) b64 += '=';
+      var json = decodeURIComponent(escape(atob(b64)));
+      var o = JSON.parse(json);
+      var cfg = {};
+      cfg.name = o.n || '\u041A\u043E\u043B\u0435\u0441\u043E \u0424\u043E\u0440\u0442\u0443\u043D\u044B';
+      cfg.theme = o.t || 'light';
+      cfg.backgroundImage = o.bg || '';
+      cfg.showScore = o.sc !== false;
+      cfg.spinCost = o.sp || 0;
+      cfg.startingPoints = o.st || 0;
+      cfg.groups = (o.g || []).map(function (gr) {
+        var group = {};
+        group.name = gr.n || '\u0413\u0440\u0443\u043F\u043F\u0430';
+        group.enabled = gr.e !== false;
+        group.segments = (gr.s || []).map(function (sg) {
+          return { name: sg.n || '\u0421\u0435\u0433\u043C\u0435\u043D\u0442', weight: sg.w || 1, points: sg.p || 0 };
+        });
+        return group;
+      });
+      return migrateConfig(cfg);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  var MAX_HASH_LENGTH = 8000;
+  var pendingShareConfig = null;
+
+  function checkShareLink() {
+    var hash = location.hash.slice(1);
+    if (!hash || hash.length < 2) return;
+    var decoded = decodeConfig(hash);
+    if (!decoded || !decoded.groups || decoded.groups.length === 0) {
+      history.replaceState(null, '', location.pathname + location.search);
+      return;
+    }
+    pendingShareConfig = decoded;
+    showSharePreview(decoded);
+  }
+
+  function showSharePreview(cfg) {
+    var themeNames = { light: '\u0421\u0432\u0435\u0442\u043B\u0430\u044F', dark: '\u0422\u0451\u043C\u043D\u0430\u044F', contrast: '\u041A\u043E\u043D\u0442\u0440\u0430\u0441\u0442\u043D\u0430\u044F' };
+    var totalSegments = 0;
+    cfg.groups.forEach(function (g) { totalSegments += (g.segments || []).length; });
+
+    var html = '<div class="share-preview-list">' +
+      '<div class="share-preview-item"><span class="share-preview-label">\u041D\u0430\u0437\u0432\u0430\u043D\u0438\u0435:</span><span class="share-preview-value">' + escapeHTML(cfg.name) + '</span></div>' +
+      '<div class="share-preview-item"><span class="share-preview-label">\u0422\u0435\u043C\u0430:</span><span class="share-preview-value">' + (themeNames[cfg.theme] || cfg.theme) + '</span></div>' +
+      '<div class="share-preview-item"><span class="share-preview-label">\u0424\u043E\u043D:</span><span class="share-preview-value">' + (cfg.backgroundImage ? '\u0417\u0430\u0434\u0430\u043D' : '\u041D\u0435\u0442') + '</span></div>' +
+      '<div class="share-preview-item"><span class="share-preview-label">\u0413\u0440\u0443\u043F\u043F:</span><span class="share-preview-value">' + cfg.groups.length + '</span></div>' +
+      '<div class="share-preview-item"><span class="share-preview-label">\u0421\u0435\u0433\u043C\u0435\u043D\u0442\u043E\u0432:</span><span class="share-preview-value">' + totalSegments + '</span></div>' +
+      '</div>';
+    document.getElementById('sharePreviewContent').innerHTML = html;
+    document.getElementById('sharePreviewModal').classList.add('active');
+  }
+
+  function applyShareConfig() {
+    if (!pendingShareConfig) return;
+    config = pendingShareConfig;
+    saveConfig();
+    applyTheme(config.theme);
+    document.getElementById('wheelTitle').textContent = config.name;
+    document.title = config.name;
+    applyScoreVisibility();
+    updateSpinButton();
+    drawWheel();
+    pendingShareConfig = null;
+    history.replaceState(null, '', location.pathname + location.search);
+    document.getElementById('sharePreviewModal').classList.remove('active');
+  }
+
+  function generateShareLink() {
+    var hash = encodeConfig(config);
+    if (hash.length > MAX_HASH_LENGTH) {
+      alert('\u041A\u043E\u043D\u0444\u0438\u0433 \u0441\u043B\u0438\u0448\u043A\u043E\u043C \u0431\u043E\u043B\u044C\u0448\u043E\u0439 \u0434\u043B\u044F \u0448\u0430\u0440\u0438\u043D\u0433\u0430 (\u0441\u043B\u0438\u0448\u043A\u043E\u043C \u043C\u043D\u043E\u0433\u043E \u0441\u0435\u0433\u043C\u0435\u043D\u0442\u043E\u0432 \u0438\u043B\u0438 \u0434\u043B\u0438\u043D\u043D\u044B\u0435 \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u044F). \u041F\u043E\u043F\u0440\u043E\u0431\u0443\u0439\u0442\u0435 \u0443\u043A\u043E\u0440\u043E\u0447\u0438\u0442\u044C \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u044F \u0438\u043B\u0438 \u0443\u0431\u0440\u0430\u0442\u044C \u043D\u0435\u043A\u043E\u0442\u043E\u0440\u044B\u0435 \u0433\u0440\u0443\u043F\u043F\u044B.');
+      return;
+    }
+    var url = location.origin + location.pathname + '#' + hash;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(function () {
+        alert('\u0421\u0441\u044B\u043B\u043A\u0430 \u0441\u043A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u043D\u0430 \u0432 \u0431\u0443\u0444\u0435\u0440 \u043E\u0431\u043C\u0435\u043D\u0430!');
+      }).catch(function () {
+        prompt('\u0421\u043A\u043E\u043F\u0438\u0440\u0443\u0439\u0442\u0435 \u0441\u0441\u044B\u043B\u043A\u0443:', url);
+      });
+    } else {
+      prompt('\u0421\u043A\u043E\u043F\u0438\u0440\u0443\u0439\u0442\u0435 \u0441\u0441\u044B\u043B\u043A\u0443:', url);
+    }
+  }
+
+  /* ============================================
      13. UTILITIES
      ============================================ */
   function escapeAttr(str) {
@@ -906,6 +1034,19 @@
       }
     });
 
+    document.getElementById('shareBtn').addEventListener('click', generateShareLink);
+    document.getElementById('shareApplyBtn').addEventListener('click', applyShareConfig);
+    document.getElementById('shareCancelBtn').addEventListener('click', function () {
+      pendingShareConfig = null;
+      history.replaceState(null, '', location.pathname + location.search);
+      document.getElementById('sharePreviewModal').classList.remove('active');
+    });
+    document.getElementById('closeSharePreview').addEventListener('click', function () {
+      pendingShareConfig = null;
+      history.replaceState(null, '', location.pathname + location.search);
+      document.getElementById('sharePreviewModal').classList.remove('active');
+    });
+
     document.getElementById('clearBgBtn').addEventListener('click', function () {
       document.getElementById('bgUrlInput').value = '';
       config.backgroundImage = '';
@@ -931,6 +1072,8 @@
       clearTimeout(resizeTimeout);
       resizeTimeout = setTimeout(drawWheel, 150);
     });
+
+    checkShareLink();
   }
 
   if ('serviceWorker' in navigator) {

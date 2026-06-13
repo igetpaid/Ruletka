@@ -122,6 +122,7 @@
         <button class="footer-btn reset-settings-btn" id="resetSettingsBtn">Сбросить</button>
         <button class="footer-btn export-btn" id="exportBtn">Экспорт JSON</button>
         <button class="footer-btn import-btn" id="importBtn">Импорт JSON</button>
+        <button class="footer-btn share-btn" id="shareBtn">Поделиться</button>
         <input type="file" id="importFileInput" accept=".json" style="display:none">
       </div>
     </div>
@@ -135,6 +136,23 @@
         <h2 class="result-text" id="resultText"></h2>
         <p class="result-points" id="resultPoints"></p>
         <button class="result-close-btn" id="closeResult">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Share Preview Modal -->
+  <div class="modal-overlay" id="sharePreviewModal">
+    <div class="modal share-preview-modal">
+      <div class="modal-header">
+        <h2>Загрузить настройки из ссылки?</h2>
+        <button class="close-btn" id="closeSharePreview">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="sharePreviewContent"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="footer-btn share-apply-btn" id="shareApplyBtn">Применить настройки</button>
+        <button class="footer-btn share-cancel-btn" id="shareCancelBtn">Отмена</button>
       </div>
     </div>
   </div>

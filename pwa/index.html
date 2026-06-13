@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#4CAF50">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Колесо Фортуны</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon-192.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.svg">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="theme-light">
+
+  <!-- Header -->
+  <header class="app-header">
+    <h1 class="wheel-title" id="wheelTitle">Колесо Фортуны</h1>
+    <button class="icon-btn" id="settingsBtn" aria-label="Настройки">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    </button>
+  </header>
+
+  <!-- User info (Telegram/MAX) -->
+  <div class="user-info" id="userInfo"></div>
+
+  <!-- Wheel -->
+  <main class="wheel-container">
+    <div class="wheel-wrapper">
+      <div class="pointer"></div>
+      <canvas id="wheelCanvas" width="600" height="600"></canvas>
+    </div>
+  </main>
+
+  <!-- Controls -->
+  <div class="controls">
+    <button class="spin-btn" id="spinBtn">Крутить</button>
+    <div class="score-panel">
+      <span class="score-label">Очки:</span>
+      <span class="score-value" id="scoreValue">0</span>
+      <button class="reset-btn" id="resetBtn">Сброс</button>
+    </div>
+    <!-- History -->
+    <div class="history-panel">
+      <div class="history-list" id="historyList"></div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div class="modal-overlay" id="settingsModal">
+    <div class="modal settings-modal">
+      <div class="modal-header">
+        <h2>Настройки</h2>
+        <button class="close-btn" id="closeSettings">&times;</button>
+      </div>
+      <div class="modal-body">
+        <!-- Wheel Name -->
+        <div class="setting-group">
+          <label for="wheelNameInput">Название колеса</label>
+          <input type="text" id="wheelNameInput" maxlength="50" placeholder="Колесо Фортуны">
+        </div>
+
+        <!-- Theme -->
+        <div class="setting-group">
+          <label>Тема</label>
+          <div class="theme-selector">
+            <button class="theme-btn theme-light-btn active" data-theme="light">Светлая</button>
+            <button class="theme-btn theme-dark-btn" data-theme="dark">Тёмная</button>
+            <button class="theme-btn theme-kawaii-btn" data-theme="kawaii">Романтическая</button>
+          </div>
+        </div>
+
+        <!-- Background URL -->
+        <div class="setting-group">
+          <label for="bgUrlInput">URL фона (изображение)</label>
+          <input type="text" id="bgUrlInput" placeholder="https://example.com/image.jpg">
+          <div class="bg-hint">Вставьте ссылку на картинку. Если пусто — используется цвет темы.</div>
+        </div>
+
+        <!-- Show Score -->
+        <div class="setting-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="showScoreCheckbox" checked>
+            <span>Показывать очки</span>
+          </label>
+        </div>
+
+        <!-- Segments -->
+        <div class="setting-group">
+          <label>Сегменты <span id="segmentCount"></span></label>
+          <div class="warning-text" id="tooManyWarning" style="display:none">
+            Более 20 сегментов — названия не отображаются на колесе
+          </div>
+          <div class="segments-list" id="segmentsList"></div>
+          <button class="add-segment-btn" id="addSegmentBtn">+ Добавить сегмент</button>
+        </div>
+
+        <!-- Probability info -->
+        <div class="setting-group">
+          <div class="probability-info">
+            Сумма вероятностей: <strong id="totalProbability">100%</strong>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="footer-btn shuffle-btn" id="shuffleBtn">Перемешать</button>
+        <button class="footer-btn save-btn" id="saveBtn">Сохранить</button>
+        <button class="footer-btn load-btn" id="loadBtn">Загрузить</button>
+        <button class="footer-btn reset-settings-btn" id="resetSettingsBtn">Сбросить</button>
+        <button class="footer-btn export-btn" id="exportBtn">Экспорт JSON</button>
+        <button class="footer-btn import-btn" id="importBtn">Импорт JSON</button>
+        <input type="file" id="importFileInput" accept=".json" style="display:none">
+      </div>
+    </div>
+  </div>
+
+  <!-- Result Modal -->
+  <div class="modal-overlay" id="resultModal">
+    <div class="modal result-modal">
+      <div class="result-content">
+        <div class="result-emoji" id="resultEmoji"></div>
+        <h2 class="result-text" id="resultText"></h2>
+        <p class="result-points" id="resultPoints"></p>
+        <button class="result-close-btn" id="closeResult">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4CAF50"/>
+      <stop offset="100%" style="stop-color:#2E7D32"/>
+    </linearGradient>
+  </defs>
+  <circle cx="256" cy="256" r="256" fill="url(#bg)"/>
+  <circle cx="256" cy="256" r="192" fill="#fff" opacity="0.15"/>
+  <circle cx="256" cy="256" r="192" fill="none" stroke="#fff" stroke-width="4"/>
+  <!-- Wheel segments (simplified) -->
+  <g transform="translate(256,256)">
+    <path d="M0,-180 L30,-30 L-30,-30 Z" fill="#e74c3c" transform="rotate(0)"/>
+    <path d="M0,-180 L30,-30 L-30,-30 Z" fill="#f1c40f" transform="rotate(45)"/>
+    <path d="M0,-180 L30,-30 L-30,-30 Z" fill="#2ecc71" transform="rotate(90)"/>
+    <path d="M0,-180 L30,-30 L-30,-30 Z" fill="#3498db" transform="rotate(135)"/>
+    <path d="M0,-180 L30,-30 L-30,-30 Z" fill="#9b59b6" transform="rotate(180)"/>
+    <path d="M0,-180 L30,-30 L-30,-30 Z" fill="#e84393" transform="rotate(225)"/>
+    <path d="M0,-180 L30,-30 L-30,-30 Z" fill="#00cec9" transform="rotate(270)"/>
+    <path d="M0,-180 L30,-30 L-30,-30 Z" fill="#e67e22" transform="rotate(315)"/>
+  </g>
+  <!-- Center -->
+  <circle cx="256" cy="256" r="38" fill="#fff"/>
+  <circle cx="256" cy="256" r="14" fill="#4CAF50"/>
+  <!-- Pointer -->
+  <polygon points="256,38 236,78 276,78" fill="#fff"/>
+</svg>

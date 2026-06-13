@@ -2,9 +2,9 @@
   'use strict';
 
   /* ============================================
-     1. COLOR PALETTE (non-rainbow, aesthetic)
+     1. COLOR PALETTE
      ============================================ */
-  const PALETTE = [
+  var PALETTE = [
     '#e74c3c', '#e67e22', '#f1c40f', '#2ecc71',
     '#1abc9c', '#3498db', '#9b59b6', '#e84393',
     '#00b894', '#6c5ce7', '#fd79a8', '#00cec9'
@@ -15,44 +15,87 @@
   }
 
   /* ============================================
-     2. CONFIG MANAGEMENT
+     2. DEFAULT CONFIG
      ============================================ */
-  const STORAGE_KEY = 'rouletteConfig';
-  const SCORE_KEY = 'rouletteScore';
-  const HISTORY_KEY = 'rouletteHistory';
-
-  const defaultConfig = {
-    name: 'Колесо Фортуны',
+  var defaultConfig = {
+    name: '\u041A\u043E\u043B\u0435\u0441\u043E \u0424\u043E\u0440\u0442\u0443\u043D\u044B',
     theme: 'light',
     backgroundImage: '',
     showScore: true,
-    segments: [
-      { name: 'Выигрыш 100', probability: 12.5 },
-      { name: 'Выигрыш 50', probability: 12.5 },
-      { name: 'Попробуй ещё', probability: 12.5 },
-      { name: 'Билет', probability: 12.5 },
-      { name: 'Джекпот 500', probability: 12.5 },
-      { name: 'Пусто', probability: 12.5 },
-      { name: 'Бонус х2', probability: 12.5 },
-      { name: 'Выигрыш 20', probability: 12.5 }
+    spinCost: 0,
+    groups: [
+      {
+        name: '\u041E\u0441\u043D\u043E\u0432\u043D\u0430\u044F',
+        enabled: true,
+        segments: [
+          { name: '\u0412\u044B\u0438\u0433\u0440\u044B\u0448 100', weight: 1, points: 100 },
+          { name: '\u0412\u044B\u0438\u0433\u0440\u044B\u0448 50', weight: 1, points: 50 },
+          { name: '\u041F\u043E\u043F\u0440\u043E\u0431\u0443\u0439 \u0435\u0449\u0451', weight: 1, points: 0 },
+          { name: '\u0411\u0438\u043B\u0435\u0442', weight: 1, points: 10 },
+          { name: '\u0414\u0436\u0435\u043A\u043F\u043E\u0442 500', weight: 0.5, points: 500 },
+          { name: '\u041F\u0443\u0441\u0442\u043E', weight: 2, points: 0 },
+          { name: '\u0411\u043E\u043D\u0443\u0441 \u04452', weight: 1, points: 75 },
+          { name: '\u0412\u044B\u0438\u0433\u0440\u044B\u0448 20', weight: 1, points: 20 }
+        ]
+      }
     ]
   };
 
-  let config = loadConfig();
-  let score = loadScore();
-  let history = loadHistory();
-  let currentRotation = 0;
-  let isSpinning = false;
+  /* ============================================
+     3. CONFIG MANAGEMENT + MIGRATION
+     ============================================ */
+  var STORAGE_KEY = 'rouletteConfig';
+  var SCORE_KEY = 'rouletteScore';
+  var HISTORY_KEY = 'rouletteHistory';
+
+  var config = loadConfig();
+  var score = loadScore();
+  var history = loadHistory();
+  var currentRotation = 0;
+  var isSpinning = false;
+  var dragState = null;
+
+  function migrateConfig(parsed) {
+    if (parsed.segments && Array.isArray(parsed.segments) && !parsed.groups) {
+      var segs = parsed.segments.map(function (s) {
+        return {
+          name: s.name || '\u0421\u0435\u0433\u043C\u0435\u043D\u0442',
+          weight: s.probability ? s.probability / (100 / parsed.segments.length) : 1,
+          points: s.probability || 1
+        };
+      });
+      parsed.groups = [{
+        name: '\u041E\u0441\u043D\u043E\u0432\u0430\u044F',
+        enabled: true,
+        segments: segs
+      }];
+      delete parsed.segments;
+    }
+    if (!parsed.groups) parsed.groups = defaultConfig.groups;
+    if (parsed.spinCost === undefined) parsed.spinCost = 0;
+    if (parsed.backgroundImage === undefined) parsed.backgroundImage = '';
+    if (parsed.showScore === undefined) parsed.showScore = true;
+    parsed.groups.forEach(function (g) {
+      if (g.enabled === undefined) g.enabled = true;
+      if (!g.segments) g.segments = [];
+      g.segments.forEach(function (s) {
+        if (s.weight === undefined) s.weight = 1;
+        if (s.points === undefined) s.points = 0;
+      });
+    });
+    return parsed;
+  }
 
   function loadConfig() {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      var saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.segments && parsed.segments.length >= 2) {
-          if (parsed.backgroundImage === undefined) parsed.backgroundImage = '';
-          if (parsed.showScore === undefined) parsed.showScore = true;
-          return parsed;
+        var parsed = JSON.parse(saved);
+        if (parsed.groups && parsed.groups.length > 0) {
+          return migrateConfig(parsed);
+        }
+        if (parsed.segments) {
+          return migrateConfig(parsed);
         }
       }
     } catch (e) {
@@ -71,7 +114,7 @@
 
   function loadScore() {
     try {
-      const saved = localStorage.getItem(SCORE_KEY);
+      var saved = localStorage.getItem(SCORE_KEY);
       return saved ? parseInt(saved, 10) || 0 : 0;
     } catch (e) {
       return 0;
@@ -81,16 +124,14 @@
   function saveScore() {
     try {
       localStorage.setItem(SCORE_KEY, String(score));
-    } catch (e) {
-      console.warn('Failed to save score:', e);
-    }
+    } catch (e) {}
   }
 
   function loadHistory() {
     try {
-      const saved = localStorage.getItem(HISTORY_KEY);
+      var saved = localStorage.getItem(HISTORY_KEY);
       if (saved) {
-        const arr = JSON.parse(saved);
+        var arr = JSON.parse(saved);
         if (Array.isArray(arr)) return arr.slice(-3);
       }
     } catch (e) {}
@@ -100,32 +141,30 @@
   function saveHistory() {
     try {
       localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(-3)));
-    } catch (e) {
-      console.warn('Failed to save history:', e);
-    }
-  }
-
-  function shuffleSegments() {
-    for (let i = config.segments.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [config.segments[i], config.segments[j]] = [config.segments[j], config.segments[i]];
-    }
-  }
-
-  function getTotalProbability() {
-    return config.segments.reduce(function (sum, s) { return sum + s.probability; }, 0);
-  }
-
-  function normalizeProbabilities() {
-    const total = getTotalProbability();
-    if (total === 0) {
-      const each = 100 / config.segments.length;
-      config.segments.forEach(function (s) { s.probability = each; });
-    }
+    } catch (e) {}
   }
 
   /* ============================================
-     3. PLATFORM DETECTION
+     4. ACTIVE SEGMENTS (from all enabled groups)
+     ============================================ */
+  function getActiveSegments() {
+    var result = [];
+    config.groups.forEach(function (group) {
+      if (group.enabled) {
+        group.segments.forEach(function (seg) {
+          result.push({ name: seg.name, weight: seg.weight || 1, points: seg.points || 0 });
+        });
+      }
+    });
+    return result;
+  }
+
+  function getTotalWeight(segments) {
+    return segments.reduce(function (sum, s) { return sum + (s.weight || 1); }, 0);
+  }
+
+  /* ============================================
+     5. PLATFORM DETECTION
      ============================================ */
   function detectPlatform() {
     if (window.Telegram && window.Telegram.WebApp) return 'telegram';
@@ -136,28 +175,25 @@
   function initPlatform() {
     var platform = detectPlatform();
     var userInfo = document.getElementById('userInfo');
-
     if (platform === 'telegram') {
       var tg = window.Telegram.WebApp;
       tg.expand();
       if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
         var user = tg.initDataUnsafe.user;
-        var name = user.first_name || user.username || 'Пользователь';
-        userInfo.textContent = 'Telegram: ' + name;
+        userInfo.textContent = 'Telegram: ' + (user.first_name || user.username || '\u041F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C');
       }
     } else if (platform === 'max') {
       var mx = window.WebApp;
       if (mx.expand) mx.expand();
       if (mx.initDataUnsafe && mx.initDataUnsafe.user) {
         var u = mx.initDataUnsafe.user;
-        var n = u.first_name || u.username || 'Пользователь';
-        userInfo.textContent = 'MAX: ' + n;
+        userInfo.textContent = 'MAX: ' + (u.first_name || u.username || '\u041F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C');
       }
     }
   }
 
   /* ============================================
-     4. WHEEL RENDERING (Canvas) — PROPORTIONAL
+     6. WHEEL RENDERING (Canvas)
      ============================================ */
   var canvas = document.getElementById('wheelCanvas');
   var ctx = canvas.getContext('2d');
@@ -177,64 +213,75 @@
     var cx = displaySize / 2;
     var cy = displaySize / 2;
     var radius = displaySize / 2 - 4;
-    var segments = config.segments;
+    var segments = getActiveSegments();
+    var total = getTotalWeight(segments);
     var count = segments.length;
-    var total = getTotalProbability();
-    var showText = count <= 20;
 
     ctx.clearRect(0, 0, displaySize, displaySize);
 
-    // Background circle
+    if (count === 0 || total === 0) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius + 2, 0, Math.PI * 2);
+      ctx.fillStyle = '#555';
+      ctx.fill();
+      ctx.font = '16px -apple-system, sans-serif';
+      ctx.fillStyle = '#aaa';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('\u041D\u0435\u0442 \u0430\u043A\u0442\u0438\u0432\u043D\u044B\u0445 \u0441\u0435\u0433\u043C\u0435\u043D\u0442\u043E\u0432', cx, cy);
+      return;
+    }
+
     ctx.beginPath();
     ctx.arc(cx, cy, radius + 2, 0, Math.PI * 2);
     ctx.fillStyle = '#333';
     ctx.fill();
 
-    // Draw segments proportionally
-    var currentAngle = -Math.PI / 2; // start from top
-    for (var i = 0; i < count; i++) {
-      var sliceAngle = (segments[i].probability / total) * Math.PI * 2;
-      var startAngle = currentAngle;
-      var endAngle = currentAngle + sliceAngle;
+    var currentAngle = -Math.PI / 2;
+    var colorIdx = 0;
+    var globalIdx = 0;
 
-      // Segment
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.arc(cx, cy, radius, startAngle, endAngle);
-      ctx.closePath();
-      ctx.fillStyle = getSegmentColor(i);
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-      ctx.lineWidth = 2;
-      ctx.stroke();
+    config.groups.forEach(function (group) {
+      if (!group.enabled) return;
+      group.segments.forEach(function (seg) {
+        var sliceAngle = ((seg.weight || 1) / total) * Math.PI * 2;
+        var startAngle = currentAngle;
+        var endAngle = currentAngle + sliceAngle;
 
-      // Text
-      if (showText && sliceAngle > 0.15) {
-        ctx.save();
-        ctx.translate(cx, cy);
-        ctx.rotate(startAngle + sliceAngle / 2);
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, radius, startAngle, endAngle);
+        ctx.closePath();
+        ctx.fillStyle = getSegmentColor(colorIdx);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
 
-        var name = segments[i].name;
-        var scale = displaySize / 400;
-        var fontSize = (sliceAngle > 0.5 ? 14 : sliceAngle > 0.3 ? 11 : 9) * scale;
-        ctx.font = 'bold ' + fontSize + 'px -apple-system, sans-serif';
-        ctx.fillStyle = '#fff';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.shadowColor = 'rgba(0,0,0,0.5)';
-        ctx.shadowBlur = 3;
+        if (sliceAngle > 0.18) {
+          ctx.save();
+          ctx.translate(cx, cy);
+          ctx.rotate(startAngle + sliceAngle / 2);
+          var scale = displaySize / 400;
+          var fontSize = (sliceAngle > 0.6 ? 14 : sliceAngle > 0.35 ? 11 : 9) * scale;
+          ctx.font = 'bold ' + fontSize + 'px -apple-system, sans-serif';
+          ctx.fillStyle = '#fff';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.shadowColor = 'rgba(0,0,0,0.5)';
+          ctx.shadowBlur = 3;
+          var maxLen = sliceAngle > 0.6 ? 14 : sliceAngle > 0.35 ? 10 : 7;
+          var displayName = seg.name.length > maxLen ? seg.name.slice(0, maxLen - 1) + '\u2026' : seg.name;
+          ctx.fillText(displayName, radius * 0.6, 0);
+          ctx.restore();
+        }
 
-        var maxLen = sliceAngle > 0.5 ? 14 : sliceAngle > 0.3 ? 10 : 7;
-        var displayName = name.length > maxLen ? name.slice(0, maxLen - 1) + '\u2026' : name;
-        ctx.fillText(displayName, radius * 0.6, 0);
+        currentAngle = endAngle;
+        colorIdx++;
+        globalIdx++;
+      });
+    });
 
-        ctx.restore();
-      }
-
-      currentAngle = endAngle;
-    }
-
-    // Center circle
     var centerR = 22 * (displaySize / 400);
     var dotR = 6 * (displaySize / 400);
     ctx.beginPath();
@@ -244,7 +291,6 @@
     ctx.strokeStyle = '#333';
     ctx.lineWidth = 3;
     ctx.stroke();
-
     ctx.beginPath();
     ctx.arc(cx, cy, dotR, 0, Math.PI * 2);
     ctx.fillStyle = '#333';
@@ -252,39 +298,45 @@
   }
 
   /* ============================================
-     5. SPIN LOGIC — PROPORTIONAL
+     7. SPIN LOGIC
      ============================================ */
-  function weightedRandom() {
-    var total = getTotalProbability();
+  function weightedRandom(segments, total) {
     var random = Math.random() * total;
-    for (var i = 0; i < config.segments.length; i++) {
-      random -= config.segments[i].probability;
+    for (var i = 0; i < segments.length; i++) {
+      random -= (segments[i].weight || 1);
       if (random <= 0) return i;
     }
-    return config.segments.length - 1;
+    return segments.length - 1;
   }
 
   function spinWheel() {
     if (isSpinning) return;
-    isSpinning = true;
 
+    var segments = getActiveSegments();
+    var total = getTotalWeight(segments);
+    if (segments.length === 0 || total === 0) return;
+
+    if (config.spinCost > 0 && score < config.spinCost) return;
+
+    isSpinning = true;
     var spinBtn = document.getElementById('spinBtn');
     spinBtn.disabled = true;
 
-    var total = getTotalProbability();
-    var selectedIndex = weightedRandom();
+    if (config.spinCost > 0) {
+      score -= config.spinCost;
+      saveScore();
+      updateScoreDisplay();
+      updateSpinButton();
+    }
 
-    // Calculate the actual center angle of the selected segment
+    var selectedIndex = weightedRandom(segments, total);
+
     var angleBefore = 0;
     for (var i = 0; i < selectedIndex; i++) {
-      angleBefore += (config.segments[i].probability / total) * 360;
+      angleBefore += (segments[i].weight || 1) / total * 360;
     }
-    var sliceAngle = (config.segments[selectedIndex].probability / total) * 360;
+    var sliceAngle = (segments[selectedIndex].weight || 1) / total * 360;
     var segmentCenterDeg = angleBefore + sliceAngle / 2;
-
-    // Pointer is at top (0°). We need segmentCenterDeg to rotate to 0°.
-    // Current wheel rotation is currentRotation. Target: segmentCenter aligns with top.
-    // targetAngle = 360 - segmentCenterDeg (to bring it to top)
     var targetAngle = 360 - segmentCenterDeg;
 
     var fullRotations = 5 + Math.floor(Math.random() * 4);
@@ -296,26 +348,24 @@
 
     setTimeout(function () {
       canvas.classList.remove('spinning');
-      showResult(selectedIndex);
+      showResult(segments[selectedIndex]);
       isSpinning = false;
       spinBtn.disabled = false;
+      updateSpinButton();
     }, 4200);
   }
 
   /* ============================================
-     6. RESULT DISPLAY + HISTORY
+     8. RESULT DISPLAY + HISTORY
      ============================================ */
-  function showResult(index) {
-    var segment = config.segments[index];
-    var name = segment.name;
-
-    var points = parsePoints(name);
+  function showResult(segment) {
+    var points = segment.points || 0;
     score += points;
     saveScore();
     updateScoreDisplay();
 
-    // Add to history
-    history.push({ name: name, points: points, color: getSegmentColor(index), time: Date.now() });
+    var colorIdx = findSegmentColorIndex(segment);
+    history.push({ name: segment.name, points: points, color: getSegmentColor(colorIdx), time: Date.now() });
     if (history.length > 3) history = history.slice(-3);
     saveHistory();
     renderHistory();
@@ -323,39 +373,47 @@
     var emoji = '\uD83C\uDFB0';
     if (points > 100) emoji = '\uD83E\uDD11';
     else if (points > 0) emoji = '\uD83C\uDF89';
-    else if (name.toLowerCase().indexOf('\u0434\u0436\u0435\u043A\u043F\u043E\u0442') >= 0) emoji = '\uD83D\uDCB0';
-    else if (name.toLowerCase().indexOf('\u0431\u043E\u043D\u0443\u0441') >= 0) emoji = '\u2728';
     else if (points === 0) emoji = '\uD83D\uDE05';
 
     document.getElementById('resultEmoji').textContent = emoji;
-    document.getElementById('resultText').textContent = name;
+    document.getElementById('resultText').textContent = segment.name;
     document.getElementById('resultPoints').textContent =
       points > 0 ? '+' + points + ' \u043E\u0447\u043A\u043E\u0432' : points < 0 ? points + ' \u043E\u0447\u043A\u043E\u0432' : '\u0411\u0435\u0437 \u043E\u0447\u043A\u043E\u0432';
 
     document.getElementById('resultModal').classList.add('active');
-
-    sendResultToBot(name, points);
+    sendResultToBot(segment.name, points);
   }
 
-  function parsePoints(name) {
-    var lower = name.toLowerCase();
-
-    if (lower.indexOf('\u043F\u0443\u0441\u0442\u043E') >= 0 || lower.indexOf('\u043F\u043E\u043F\u0440\u043E\u0431\u0443\u0439') >= 0) return 0;
-
-    var bonusMatch = lower.match(/\u0431\u043E\u043D\u0443\u0441\s*х(\d+)/);
-    if (bonusMatch) return 50 * parseInt(bonusMatch[1], 10);
-
-    var jackpotMatch = lower.match(/\u0434\u0436\u0435\u043A\u043F\u043E\u0442\s*(\d+)/);
-    if (jackpotMatch) return parseInt(jackpotMatch[1], 10);
-
-    var numMatch = name.match(/(\d+)/);
-    if (numMatch) return parseInt(numMatch[1], 10);
-
+  function findSegmentColorIndex(targetSeg) {
+    var idx = 0;
+    for (var gi = 0; gi < config.groups.length; gi++) {
+      var g = config.groups[gi];
+      if (!g.enabled) continue;
+      for (var si = 0; si < g.segments.length; si++) {
+        if (g.segments[si].name === targetSeg.name && (g.segments[si].weight || 1) === (targetSeg.weight || 1)) {
+          return idx;
+        }
+        idx++;
+      }
+    }
     return 0;
   }
 
   function updateScoreDisplay() {
     document.getElementById('scoreValue').textContent = score;
+  }
+
+  function updateSpinButton() {
+    var spinBtn = document.getElementById('spinBtn');
+    var sessionBtn = document.getElementById('newSessionBtn');
+    if (config.spinCost > 0 && score < config.spinCost) {
+      spinBtn.textContent = '\u041D\u0435\u0434\u043E\u0441\u0442\u0430\u0442\u043E\u0447\u043D\u043E \u0431\u0430\u043B\u043B\u043E\u0432';
+      spinBtn.disabled = true;
+      sessionBtn.style.display = 'inline-block';
+    } else {
+      spinBtn.textContent = '\u041A\u0440\u0443\u0442\u0438\u0442\u044C';
+      sessionBtn.style.display = config.spinCost > 0 ? 'inline-block' : 'none';
+    }
   }
 
   function renderHistory() {
@@ -374,63 +432,59 @@
     }
   }
 
+  function newSession() {
+    score = 0;
+    history = [];
+    saveScore();
+    saveHistory();
+    updateScoreDisplay();
+    renderHistory();
+    updateSpinButton();
+  }
+
   /* ============================================
-     7. BOT INTEGRATION (Telegram/MAX)
+     9. BOT INTEGRATION
      ============================================ */
   function sendResultToBot(segmentName, points) {
     var platform = detectPlatform();
     try {
-      if (platform === 'telegram' && window.Telegram.WebApp) {
-        var tg = window.Telegram.WebApp;
-        if (tg.sendData) {
-          tg.sendData(JSON.stringify({ segment: segmentName, points: points }));
-        }
-      } else if (platform === 'max' && window.WebApp) {
-        var mx = window.WebApp;
-        if (mx.sendData) {
-          mx.sendData(JSON.stringify({ segment: segmentName, points: points }));
-        }
+      var data = JSON.stringify({ segment: segmentName, points: points });
+      if (platform === 'telegram' && window.Telegram.WebApp && window.Telegram.WebApp.sendData) {
+        window.Telegram.WebApp.sendData(data);
+      } else if (platform === 'max' && window.WebApp && window.WebApp.sendData) {
+        window.WebApp.sendData(data);
       }
-    } catch (e) {
-      console.warn('Could not send data to bot:', e);
-    }
+    } catch (e) {}
   }
 
   /* ============================================
-     8. BACKGROUND IMAGE
+     10. BACKGROUND IMAGE
      ============================================ */
   function applyBackgroundImage() {
-    var body = document.body;
     if (config.backgroundImage && config.backgroundImage.trim()) {
-      body.style.backgroundImage = 'url(' + config.backgroundImage + ')';
-      body.style.backgroundSize = 'cover';
-      body.style.backgroundPosition = 'center';
-      body.style.backgroundRepeat = 'no-repeat';
+      document.body.style.backgroundImage = 'url(' + config.backgroundImage + ')';
+      document.body.style.backgroundSize = 'cover';
+      document.body.style.backgroundPosition = 'center';
+      document.body.style.backgroundRepeat = 'no-repeat';
     } else {
-      body.style.backgroundImage = 'none';
+      document.body.style.backgroundImage = 'none';
     }
   }
 
   /* ============================================
-     9. SETTINGS UI
+     11. SETTINGS UI
      ============================================ */
   function openSettings() {
     document.getElementById('wheelNameInput').value = config.name;
     document.getElementById('bgUrlInput').value = config.backgroundImage || '';
-
-    // Show score checkbox
     document.getElementById('showScoreCheckbox').checked = config.showScore;
+    document.getElementById('spinCostInput').value = config.spinCost || 0;
 
-    // Theme buttons
     document.querySelectorAll('.theme-btn').forEach(function (btn) {
       btn.classList.toggle('active', btn.dataset.theme === config.theme);
     });
 
-    renderSegmentsList();
-    updateProbabilityTotal();
-    document.getElementById('tooManyWarning').style.display =
-      config.segments.length > 20 ? 'block' : 'none';
-
+    renderGroupsList();
     document.getElementById('settingsModal').classList.add('active');
   }
 
@@ -438,72 +492,227 @@
     document.getElementById('settingsModal').classList.remove('active');
   }
 
-  function renderSegmentsList() {
-    var list = document.getElementById('segmentsList');
-    list.innerHTML = '';
+  /* ---------- GROUPS ---------- */
+  function renderGroupsList() {
+    var container = document.getElementById('groupsContainer');
+    container.innerHTML = '';
 
-    document.getElementById('segmentCount').textContent =
-      '(' + config.segments.length + ')';
+    config.groups.forEach(function (group, gi) {
+      var groupEl = document.createElement('div');
+      groupEl.className = 'group-item';
+      groupEl.dataset.groupIndex = gi;
 
-    config.segments.forEach(function (seg, i) {
-      var item = document.createElement('div');
-      item.className = 'segment-item';
-      item.innerHTML =
-        '<span class="segment-color" style="background:' + getSegmentColor(i) + '"></span>' +
-        '<input type="text" value="' + escapeAttr(seg.name) + '" data-index="' + i + '" class="seg-name">' +
-        '<input type="number" value="' + seg.probability + '" min="0" max="100" step="0.5" data-index="' + i + '" class="seg-prob">' +
-        '<span style="font-size:0.8rem;color:var(--text-secondary)">%</span>' +
-        '<button class="segment-delete" data-index="' + i + '">&times;</button>';
-      list.appendChild(item);
-    });
+      var header = document.createElement('div');
+      header.className = 'group-header';
+      header.innerHTML =
+        '<span class="group-toggle" data-gi="' + gi + '">' + (group.enabled ? '\u25BC' : '\u25B6') + '</span>' +
+        '<input type="text" class="group-name-input" value="' + escapeAttr(group.name) + '" data-gi="' + gi + '">' +
+        '<label class="group-enabled-label"><input type="checkbox" class="group-enabled-cb" data-gi="' + gi + '"' + (group.enabled ? ' checked' : '') + '>\u0412\u043A\u043B</label>' +
+        '<button class="group-delete-btn" data-gi="' + gi + '">&times;</button>';
 
-    list.querySelectorAll('.seg-name').forEach(function (input) {
-      input.addEventListener('change', function () {
-        config.segments[parseInt(this.dataset.index)].name = this.value;
+      var body = document.createElement('div');
+      body.className = 'group-body';
+      body.style.display = 'none';
+
+      group.segments.forEach(function (seg, si) {
+        body.appendChild(createSegmentItem(gi, si, seg));
       });
-    });
 
-    list.querySelectorAll('.seg-prob').forEach(function (input) {
-      input.addEventListener('change', function () {
-        config.segments[parseInt(this.dataset.index)].probability =
-          parseFloat(this.value) || 0;
-        updateProbabilityTotal();
-      });
-    });
-
-    list.querySelectorAll('.segment-delete').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        if (config.segments.length <= 2) {
-          alert('\u041C\u0438\u043D\u0438\u043C\u0443\u043C 2 \u0441\u0435\u0433\u043C\u0435\u043D\u0442\u0430!');
+      var addBtn = document.createElement('button');
+      addBtn.className = 'add-segment-btn';
+      addBtn.textContent = '+ \u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u0441\u0435\u0433\u043C\u0435\u043D\u0442';
+      addBtn.addEventListener('click', function () {
+        if (config.groups[gi].segments.length >= 50) {
+          alert('\u041C\u0430\u043A\u0441\u0438\u043C\u0443\u043C 50 \u0441\u0435\u0433\u043C\u0435\u043D\u0442\u043E\u0432 \u0432 \u0433\u0440\u0443\u043F\u043F\u0435!');
           return;
         }
-        config.segments.splice(parseInt(this.dataset.index), 1);
-        renderSegmentsList();
-        updateProbabilityTotal();
+        config.groups[gi].segments.push({ name: '\u041D\u043E\u0432\u044B\u0439', weight: 1, points: 0 });
+        renderGroupsList();
+      });
+      body.appendChild(addBtn);
+
+      groupEl.appendChild(header);
+      groupEl.appendChild(body);
+      container.appendChild(groupEl);
+
+      header.querySelector('.group-toggle').addEventListener('click', function () {
+        var isVisible = body.style.display !== 'none';
+        body.style.display = isVisible ? 'none' : 'block';
+        this.textContent = isVisible ? '\u25B6' : '\u25BC';
+      });
+
+      header.querySelector('.group-name-input').addEventListener('change', function () {
+        config.groups[gi].name = this.value;
+      });
+
+      header.querySelector('.group-enabled-cb').addEventListener('change', function () {
+        config.groups[gi].enabled = this.checked;
+        header.querySelector('.group-toggle').textContent = this.checked ? '\u25BC' : '\u25B6';
+        drawWheel();
+      });
+
+      header.querySelector('.group-delete-btn').addEventListener('click', function () {
+        if (config.groups.length <= 1) {
+          alert('\u0414\u043E\u043B\u0436\u043D\u0430 \u0431\u044B\u0442\u044C \u0445\u043E\u0442\u044F \u043E\u0434\u043D\u0430 \u0433\u0440\u0443\u043F\u043F\u0430!');
+          return;
+        }
+        if (confirm('\u0423\u0434\u0430\u043B\u0438\u0442\u044C \u0433\u0440\u0443\u043F\u043F\u0443 "' + config.groups[gi].name + '"?')) {
+          config.groups.splice(gi, 1);
+          renderGroupsList();
+        }
+      });
+
+      setupDragAndDrop(body, gi);
+    });
+  }
+
+  function createSegmentItem(gi, si, seg) {
+    var total = 0;
+    config.groups.forEach(function (g) {
+      if (g.enabled) g.segments.forEach(function (s) { total += (s.weight || 1); });
+    });
+    var pct = total > 0 ? ((seg.weight || 1) / total * 100) : 0;
+
+    var item = document.createElement('div');
+    item.className = 'segment-item';
+    item.draggable = true;
+    item.dataset.groupIndex = gi;
+    item.dataset.segmentIndex = si;
+
+    item.innerHTML =
+      '<div class="seg-drag-handle">\u2630</div>' +
+      '<span class="segment-color" style="background:' + getSegmentColor(findGlobalIndex(gi, si)) + '"></span>' +
+      '<div class="seg-fields">' +
+        '<input type="text" class="seg-name" value="' + escapeAttr(seg.name) + '" placeholder="\u0418\u043C\u044F">' +
+        '<div class="seg-numbers">' +
+          '<div class="seg-field"><label>\u0412\u0435\u0441</label>' +
+            '<input type="number" class="seg-weight" value="' + (seg.weight || 1) + '" min="0.1" step="0.1" data-gi="' + gi + '" data-si="' + si + '">' +
+          '</div>' +
+          '<div class="seg-field"><label>\u041E\u0447\u043A\u0438</label>' +
+            '<input type="number" class="seg-points" value="' + (seg.points || 0) + '" data-gi="' + gi + '" data-si="' + si + '">' +
+          '</div>' +
+          '<div class="seg-field seg-pct"><label>\u0428\u0430\u043D\u0441</label>' +
+            '<span class="seg-pct-value">' + Math.round(pct * 10) / 10 + '%</span>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<button class="segment-delete" data-gi="' + gi + '" data-si="' + si + '">&times;</button>';
+
+    item.querySelector('.seg-name').addEventListener('change', function () {
+      config.groups[gi].segments[si].name = this.value;
+    });
+
+    item.querySelector('.seg-weight').addEventListener('change', function () {
+      config.groups[gi].segments[si].weight = parseFloat(this.value) || 1;
+      renderGroupsList();
+    });
+
+    item.querySelector('.seg-points').addEventListener('change', function () {
+      config.groups[gi].segments[si].points = parseInt(this.value, 10) || 0;
+    });
+
+    item.querySelector('.segment-delete').addEventListener('click', function () {
+      config.groups[gi].segments.splice(si, 1);
+      renderGroupsList();
+    });
+
+    return item;
+  }
+
+  function findGlobalIndex(gi, si) {
+    var idx = 0;
+    for (var g = 0; g < gi; g++) {
+      idx += config.groups[g].segments.length;
+    }
+    return idx + si;
+  }
+
+  /* ---------- DRAG AND DROP ---------- */
+  function setupDragAndDrop(container, gi) {
+    var items = container.querySelectorAll('.segment-item');
+    items.forEach(function (item) {
+      item.addEventListener('dragstart', function (e) {
+        dragState = { gi: gi, si: parseInt(this.dataset.segmentIndex) };
+        this.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      });
+
+      item.addEventListener('dragend', function () {
+        this.classList.remove('dragging');
+        container.querySelectorAll('.segment-item').forEach(function (el) {
+          el.classList.remove('drag-over');
+        });
+        dragState = null;
+      });
+
+      item.addEventListener('dragover', function (e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        this.classList.add('drag-over');
+      });
+
+      item.addEventListener('dragleave', function () {
+        this.classList.remove('drag-over');
+      });
+
+      item.addEventListener('drop', function (e) {
+        e.preventDefault();
+        this.classList.remove('drag-over');
+        if (!dragState) return;
+
+        var fromSi = dragState.si;
+        var toSi = parseInt(this.dataset.segmentIndex);
+
+        if (fromSi === toSi) return;
+
+        var segs = config.groups[gi].segments;
+        var moved = segs.splice(fromSi, 1)[0];
+        segs.splice(toSi, 0, moved);
+
+        renderGroupsList();
       });
     });
   }
 
-  function updateProbabilityTotal() {
-    var total = getTotalProbability();
-    var el = document.getElementById('totalProbability');
-    el.textContent = Math.round(total * 10) / 10 + '%';
-    el.style.color = Math.abs(total - 100) < 0.1 ? 'var(--primary)' : 'var(--danger)';
+  /* ---------- ADD GROUP ---------- */
+  function addGroup() {
+    config.groups.push({
+      name: '\u0413\u0440\u0443\u043F\u043F\u0430 ' + (config.groups.length + 1),
+      enabled: true,
+      segments: [{ name: '\u0421\u0435\u0433\u043C\u0435\u043D\u0442', weight: 1, points: 0 }]
+    });
+    renderGroupsList();
   }
 
-  function addSegment() {
-    if (config.segments.length >= 50) {
-      alert('\u041C\u0430\u043A\u0441\u0438\u043C\u0443\u043C 50 \u0441\u0435\u0433\u043C\u0435\u043D\u0442\u043E\u0432!');
-      return;
-    }
-    config.segments.push({
-      name: '\u041D\u043E\u0432\u044B\u0439 \u0441\u0435\u0433\u043C\u0435\u043D\u0442',
-      probability: Math.round(100 / (config.segments.length + 1) * 10) / 10
-    });
-    renderSegmentsList();
-    updateProbabilityTotal();
-    document.getElementById('tooManyWarning').style.display =
-      config.segments.length > 20 ? 'block' : 'none';
+  /* ---------- SAVE SETTINGS ---------- */
+  function saveSettings() {
+    config.name = document.getElementById('wheelNameInput').value || '\u041A\u043E\u043B\u0435\u0441\u043E \u0424\u043E\u0440\u0442\u0443\u043D\u044B';
+    config.backgroundImage = document.getElementById('bgUrlInput').value.trim();
+    config.showScore = document.getElementById('showScoreCheckbox').checked;
+    config.spinCost = parseInt(document.getElementById('spinCostInput').value, 10) || 0;
+
+    saveConfig();
+    applyTheme(config.theme);
+    document.getElementById('wheelTitle').textContent = config.name;
+    document.title = config.name;
+    applyScoreVisibility();
+    updateSpinButton();
+    drawWheel();
+    closeSettings();
+  }
+
+  function resetSettings() {
+    if (!confirm('\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C \u0432\u0441\u0435 \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u043A \u0441\u0442\u0430\u043D\u0434\u0430\u0440\u0442\u043D\u044B\u043C?')) return;
+    config = JSON.parse(JSON.stringify(defaultConfig));
+    newSession();
+    saveConfig();
+    applyTheme(config.theme);
+    document.getElementById('wheelTitle').textContent = config.name;
+    document.title = config.name;
+    applyScoreVisibility();
+    updateSpinButton();
+    drawWheel();
+    closeSettings();
   }
 
   function applyTheme(theme) {
@@ -516,41 +725,13 @@
     applyBackgroundImage();
   }
 
-  function saveSettings() {
-    config.name = document.getElementById('wheelNameInput').value || '\u041A\u043E\u043B\u0435\u0441\u043E \u0424\u043E\u0440\u0442\u0443\u043D\u044B';
-    config.backgroundImage = document.getElementById('bgUrlInput').value.trim();
-    config.showScore = document.getElementById('showScoreCheckbox').checked;
-    normalizeProbabilities();
-    saveConfig();
-    applyTheme(config.theme);
-    document.getElementById('wheelTitle').textContent = config.name;
-    document.title = config.name;
-    applyScoreVisibility();
-    drawWheel();
-    closeSettings();
-  }
-
-  function resetSettings() {
-    if (!confirm('\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C \u0432\u0441\u0435 \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u043A \u0441\u0442\u0430\u043D\u0434\u0430\u0440\u0442\u043D\u044B\u043C?')) return;
-    config = JSON.parse(JSON.stringify(defaultConfig));
-    saveConfig();
-    applyTheme(config.theme);
-    document.getElementById('wheelTitle').textContent = config.name;
-    document.title = config.name;
-    applyScoreVisibility();
-    drawWheel();
-    closeSettings();
-  }
-
   function applyScoreVisibility() {
     var panel = document.querySelector('.score-panel');
-    if (panel) {
-      panel.style.display = config.showScore ? 'flex' : 'none';
-    }
+    if (panel) panel.style.display = config.showScore ? 'flex' : 'none';
   }
 
   /* ============================================
-     10. IMPORT / EXPORT JSON
+     12. IMPORT / EXPORT JSON
      ============================================ */
   function exportConfig() {
     var blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
@@ -569,30 +750,29 @@
     reader.onload = function (e) {
       try {
         var imported = JSON.parse(e.target.result);
-        if (!imported.segments || !Array.isArray(imported.segments) || imported.segments.length < 2) {
-          alert('\u041D\u0435\u0432\u0435\u0440\u043D\u044B\u0439 \u0444\u043E\u0440\u043C\u0430\u0442: \u043D\u0443\u0436\u043D\u044B \u043C\u0438\u043D\u0438\u043C\u0443\u043C 2 \u0441\u0435\u0433\u043C\u0435\u043D\u0442\u0430');
+        imported = migrateConfig(imported);
+        if (!imported.groups || imported.groups.length === 0) {
+          alert('\u041D\u0435\u0432\u0435\u0440\u043D\u044B\u0439 \u0444\u043E\u0440\u043C\u0430\u0442');
           return;
         }
         config = imported;
-        if (config.backgroundImage === undefined) config.backgroundImage = '';
-        if (config.showScore === undefined) config.showScore = true;
-        normalizeProbabilities();
         saveConfig();
         applyTheme(config.theme);
         document.getElementById('wheelTitle').textContent = config.name;
         document.title = config.name;
         applyScoreVisibility();
+        updateSpinButton();
         drawWheel();
         alert('\u041A\u043E\u043D\u0444\u0438\u0433 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043D!');
       } catch (err) {
-        alert('\u041E\u0448\u0438\u0431\u043A\u0430 \u0447\u0442\u0435\u043D\u0438\u044F JSON: ' + err.message);
+        alert('\u041E\u0448\u0438\u0431\u043A\u0430: ' + err.message);
       }
     };
     reader.readAsText(file);
   }
 
   /* ============================================
-     11. UTILITIES
+     13. UTILITIES
      ============================================ */
   function escapeAttr(str) {
     return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;')
@@ -606,7 +786,7 @@
   }
 
   /* ============================================
-     12. EVENT LISTENERS & INIT
+     14. EVENT LISTENERS & INIT
      ============================================ */
   function init() {
     applyTheme(config.theme);
@@ -616,80 +796,75 @@
     applyScoreVisibility();
     renderHistory();
     drawWheel();
+    updateSpinButton();
     initPlatform();
 
-    // Spin button
     document.getElementById('spinBtn').addEventListener('click', spinWheel);
 
-    // Reset score
-    document.getElementById('resetBtn').addEventListener('click', function () {
-      if (confirm('\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C \u0441\u0447\u0451\u0442?')) {
-        score = 0;
-        saveScore();
-        updateScoreDisplay();
+    document.getElementById('newSessionBtn').addEventListener('click', function () {
+      if (confirm('\u041D\u0430\u0447\u0430\u0442\u044C \u043D\u043E\u0432\u0443\u044E \u0441\u0435\u0441\u0441\u0438\u044E? \u041E\u0447\u043A\u0438 \u0438 \u0438\u0441\u0442\u043E\u0440\u0438\u044F \u0431\u0443\u0434\u0443\u0442 \u0441\u0431\u0440\u043E\u0448\u0435\u043D\u044B.')) {
+        newSession();
       }
     });
 
-    // Settings
+    document.getElementById('resetBtn').addEventListener('click', function () {
+      if (confirm('\u041D\u0430\u0447\u0430\u0442\u044C \u043D\u043E\u0432\u0443\u044E \u0441\u0435\u0441\u0441\u0438\u044E?')) {
+        newSession();
+      }
+    });
+
     document.getElementById('settingsBtn').addEventListener('click', openSettings);
     document.getElementById('closeSettings').addEventListener('click', closeSettings);
-    document.getElementById('addSegmentBtn').addEventListener('click', addSegment);
     document.getElementById('saveBtn').addEventListener('click', saveSettings);
     document.getElementById('resetSettingsBtn').addEventListener('click', resetSettings);
+    document.getElementById('addGroupBtn').addEventListener('click', addGroup);
 
-    // Shuffle
     document.getElementById('shuffleBtn').addEventListener('click', function () {
-      shuffleSegments();
-      renderSegmentsList();
+      config.groups.forEach(function (g) {
+        for (var i = g.segments.length - 1; i > 0; i--) {
+          var j = Math.floor(Math.random() * (i + 1));
+          var tmp = g.segments[i]; g.segments[i] = g.segments[j]; g.segments[j] = tmp;
+        }
+      });
+      renderGroupsList();
       drawWheel();
     });
 
-    // Theme buttons
     document.querySelectorAll('.theme-btn').forEach(function (btn) {
       btn.addEventListener('click', function () {
         config.theme = this.dataset.theme;
-        document.querySelectorAll('.theme-btn').forEach(function (b) {
-          b.classList.remove('active');
-        });
+        document.querySelectorAll('.theme-btn').forEach(function (b) { b.classList.remove('active'); });
         this.classList.add('active');
       });
     });
 
-    // Show score checkbox
     document.getElementById('showScoreCheckbox').addEventListener('change', function () {
       config.showScore = this.checked;
       saveConfig();
       applyScoreVisibility();
     });
 
-    // Close result modal
     document.getElementById('closeResult').addEventListener('click', function () {
       document.getElementById('resultModal').classList.remove('active');
     });
 
-    // Close modals on overlay click
     document.querySelectorAll('.modal-overlay').forEach(function (overlay) {
       overlay.addEventListener('click', function (e) {
-        if (e.target === overlay) {
-          overlay.classList.remove('active');
-        }
+        if (e.target === overlay) overlay.classList.remove('active');
       });
     });
 
-    // Load from localStorage (reload button in settings)
     document.getElementById('loadBtn').addEventListener('click', function () {
       config = loadConfig();
       applyTheme(config.theme);
       document.getElementById('wheelTitle').textContent = config.name;
       document.title = config.name;
       applyScoreVisibility();
+      updateSpinButton();
       openSettings();
     });
 
-    // Export JSON
     document.getElementById('exportBtn').addEventListener('click', exportConfig);
-
-    // Import JSON
     document.getElementById('importBtn').addEventListener('click', function () {
       document.getElementById('importFileInput').click();
     });
@@ -700,13 +875,26 @@
       }
     });
 
-    // Background URL live preview
-    document.getElementById('bgUrlInput').addEventListener('change', function () {
-      config.backgroundImage = this.value.trim();
+    document.getElementById('clearBgBtn').addEventListener('click', function () {
+      document.getElementById('bgUrlInput').value = '';
+      config.backgroundImage = '';
       applyBackgroundImage();
     });
 
-    // Handle resize
+    document.getElementById('pasteBgBtn').addEventListener('click', function () {
+      if (navigator.clipboard && navigator.clipboard.readText) {
+        navigator.clipboard.readText().then(function (text) {
+          document.getElementById('bgUrlInput').value = text;
+          config.backgroundImage = text.trim();
+          applyBackgroundImage();
+        }).catch(function () {
+          alert('\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043F\u0440\u043E\u0447\u0438\u0442\u0430\u0442\u044C \u0431\u0443\u0444\u0435\u0440 \u043E\u0431\u043C\u0435\u043D\u0430');
+        });
+      } else {
+        alert('\u0411\u0443\u0444\u0435\u0440 \u043E\u0431\u043C\u0435\u043D\u0430 \u043D\u0435 \u043F\u043E\u0434\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0435\u0442\u0441\u044F');
+      }
+    });
+
     var resizeTimeout;
     window.addEventListener('resize', function () {
       clearTimeout(resizeTimeout);
@@ -714,16 +902,12 @@
     });
   }
 
-  // Service Worker registration
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register('sw.js').catch(function (e) {
-        console.warn('SW registration failed:', e);
-      });
+      navigator.serviceWorker.register('sw.js').catch(function (e) {});
     });
   }
 
-  // Start
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {

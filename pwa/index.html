@@ -39,6 +39,7 @@
   <!-- Controls -->
   <div class="controls">
     <button class="spin-btn" id="spinBtn">Крутить</button>
+    <button class="new-session-btn" id="newSessionBtn" style="display:none">Начать новую сессию</button>
     <div class="score-panel">
       <span class="score-label">Очки:</span>
       <span class="score-value" id="scoreValue">0</span>
@@ -77,7 +78,11 @@
         <!-- Background URL -->
         <div class="setting-group">
           <label for="bgUrlInput">URL фона (изображение)</label>
-          <input type="text" id="bgUrlInput" placeholder="https://example.com/image.jpg">
+          <div class="bg-url-row">
+            <input type="text" id="bgUrlInput" placeholder="https://example.com/image.jpg">
+            <button class="bg-action-btn" id="pasteBgBtn" title="Вставить из буфера">📋</button>
+            <button class="bg-action-btn" id="clearBgBtn" title="Очистить">✕</button>
+          </div>
           <div class="bg-hint">Вставьте ссылку на картинку. Если пусто — используется цвет темы.</div>
         </div>
 
@@ -89,21 +94,18 @@
           </label>
         </div>
 
-        <!-- Segments -->
+        <!-- Spin Cost -->
         <div class="setting-group">
-          <label>Сегменты <span id="segmentCount"></span></label>
-          <div class="warning-text" id="tooManyWarning" style="display:none">
-            Более 20 сегментов — названия не отображаются на колесе
-          </div>
-          <div class="segments-list" id="segmentsList"></div>
-          <button class="add-segment-btn" id="addSegmentBtn">+ Добавить сегмент</button>
+          <label for="spinCostInput">Стоимость вращения (очки)</label>
+          <input type="number" id="spinCostInput" min="0" step="1" value="0" placeholder="0 = бесплатно">
+          <div class="bg-hint">0 = бесплатное вращение. При нехватке очков вращение недоступно.</div>
         </div>
 
-        <!-- Probability info -->
+        <!-- Groups -->
         <div class="setting-group">
-          <div class="probability-info">
-            Сумма вероятностей: <strong id="totalProbability">100%</strong>
-          </div>
+          <label>Группы сегментов</label>
+          <div id="groupsContainer"></div>
+          <button class="add-group-btn" id="addGroupBtn">+ Добавить группу</button>
         </div>
       </div>
       <div class="modal-footer">
